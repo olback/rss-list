@@ -9,14 +9,17 @@ use {
 #[derive(Debug)]
 pub struct Feed {
     pub title: String,
+    pub source: String,
     pub description: Option<String>,
-    pub icon: Option<String>,
+    pub url: Option<String>,
+    pub icon: Option<PathBuf>,
     pub posts: Vec<Post>,
 }
 
 #[derive(Debug)]
 pub struct Post {
     pub title: String,
+    pub summary: Option<String>,
     pub url: String,
     pub publisher: String,
     pub published: chrono::DateTime<chrono::Utc>,
@@ -24,7 +27,7 @@ pub struct Post {
 
 fn get_sources_file_path() -> Result<PathBuf> {
     let dir = dirs::config_dir()
-        .map(|d| d.join("rss-list"))
+        .map(|d| d.join(env!("CARGO_PKG_NAME")))
         .ok_or(Error::NoConfigDir)?;
 
     if !dir.is_dir() {
@@ -45,6 +48,12 @@ pub fn add_source(source: &str) -> Result<()> {
         .create(true)
         .open(get_sources_file_path()?)?
         .write_all(format!("{}\n", source).as_bytes())?;
+    Ok(())
+}
+
+pub fn write_sources(sources: &[&str]) -> Result<()> {
+    let data = sources.join("\n") + "\n";
+    fs::write(get_sources_file_path()?, &data)?;
     Ok(())
 }
 
@@ -70,20 +79,39 @@ pub fn download(sources: &[&str]) -> (Vec<Feed>, Vec<Error>) {
                 .and_then(|r| r.bytes().map_err(Error::from))
                 .and_then(|b| feed_rs::parser::parse(&b[..]).map_err(Error::from))
                 .and_then(|feed| {
+                    // println!("{:#?}", feed);
                     let title = feed.title.map(|t| t.content).ok_or(Error::MissingData {
                         site: String::from(*site),
                         field: "title",
                     })?;
                     Ok(Feed {
                         title: title.clone(),
+                        source: String::from(*site),
                         description: feed.description.map(|t| t.content),
-                        icon: feed.icon.map(|i| i.uri),
+                        url: feed.links.get(0).map(|l| l.href.clone()),
+                        icon: feed
+                            .icon
+                            .and_then(|i| reqwest::blocking::get(i.uri).ok())
+                            .and_then(|r| r.bytes().ok())
+                            .and_then(|b| dirs::cache_dir().map(|c| (b, c)))
+                            .and_then(|(bytes, dir)| {
+                                let cache_dir = dir.join(env!("CARGO_PKG_NAME"));
+                                let file = cache_dir.join(hex::encode(&title));
+                                if !cache_dir.exists() {
+                                    fs::create_dir_all(&cache_dir).ok()?;
+                                }
+                                match fs::write(&file, bytes.to_vec()) {
+                                    Ok(_) => Some(file),
+                                    Err(_) => None,
+                                }
+                            }),
                         posts: feed
                             .entries
                             .into_iter()
                             .filter_map(move |entry| {
                                 Some(Post {
                                     title: entry.title.map(|t| t.content)?,
+                                    summary: entry.summary.map(|t| t.content.trim().to_string()),
                                     url: entry.links.get(0).map(|l| l.href.clone())?,
                                     publisher: title.clone(),
                                     published: entry.published.or(entry.updated)?,

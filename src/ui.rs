@@ -5,6 +5,7 @@ use {
         source::{self, Feed},
     },
     gtk::{
+        gdk_pixbuf::{InterpType, Pixbuf},
         glib::{clone, MainContext, PRIORITY_DEFAULT},
         prelude::*,
         AboutDialog, Align, ApplicationWindow, Box as GtkBox, Builder, Button, Dialog, Entry,
@@ -108,11 +109,54 @@ impl Ui {
                         }
 
                         for feed in &feeds {
-                            let row = GtkBox::new(Orientation::Horizontal, 6);
-                            row.add(&Image::from_icon_name(Some("emblem-documents"), IconSize::LargeToolbar));
+                            let row = EventBox::new();
+                            row.connect_button_press_event(clone!(@strong feed.url as url, @strong tx, @strong feed.source as source => move |_, evt| {
+                                let button = evt.button();
+                                if button == 1 {
+                                    if let Some(ref u) = url {
+                                        let _ = gtk::show_uri_on_window(None::<&ApplicationWindow>, u, 0);
+                                    }
+                                } else if button == 3 {
+                                    let menu = gtk::Menu::new();
+                                    let item1 = gtk::MenuItem::new();
+                                    item1.set_label("Delete");
+                                    item1.connect_activate(clone!(@strong tx, @strong source => move |_| {
+                                        let result: Result<()> = (|| {
+                                            let sources = source::get_sources()?.into_iter().filter(|s| s != &source).collect::<Vec<_>>();
+                                            source::write_sources(sources.iter().map(|s| s.as_str()).collect::<Vec<_>>().as_slice())?;
+                                            Ok(())
+                                        })();
+                                        match result {
+                                            Ok(_) => {
+                                                let _ = tx.send(UiEvent::Reload);
+                                                let _ = tx.send(UiEvent::Message(format!("Source {} deleted", &source), MessageType::Info));
+                                            },
+                                            Err(e) => {
+                                                let _ = tx.send(UiEvent::Message(format!("{:?}", e), MessageType::Error));
+                                            }
+                                        }
+                                    }));
+                                    menu.add(&item1);
+                                    menu.show_all();
+                                    menu.popup_at_pointer(None);
+                                }
+                                Inhibit(false)
+
+                            }));
+                            let box1 = GtkBox::new(Orientation::Horizontal, 6);
+                            if let Some(ref description) = feed.description {
+                                box1.set_tooltip_text(Some(description.as_str()));
+                            }
+                            let image = Image::from_icon_name(Some("emblem-documents"), IconSize::LargeToolbar);
+                            if let Some(pixbuf) = feed.icon.as_ref().and_then(|icon_path| Pixbuf::from_file(icon_path).ok()).and_then(|pb| pb.scale_simple(24, 24, InterpType::Bilinear)) {
+                                image.set_pixbuf(Some(&pixbuf));
+                            }
+                            box1.add(&image);
                             let label = Label::new(Some(&feed.title));
-                            row.add(&label);
-                            row.set_border_width(6);
+                            box1.add(&label);
+                            box1.set_border_width(6);
+                            box1.show_all();
+                            row.add(&box1);
                             row.show_all();
                             inner.sources_list.add(&row);
                         }
@@ -128,11 +172,17 @@ impl Ui {
 
                         for post in posts {
                             let row = EventBox::new();
-                            row.connect_button_press_event(clone!(@strong post.url as url => move |_, _| {
-                                let _ = gtk::show_uri_on_window(None::<&ApplicationWindow>, &url, 0);
+                            row.connect_button_press_event(clone!(@strong post.url as url => move |_, evt| {
+                                if evt.button() == 1 {
+                                    let _ = gtk::show_uri_on_window(None::<&ApplicationWindow>, &url, 0);
+                                }
                                 Inhibit(false)
                             }));
                             let box1 = GtkBox::new(Orientation::Vertical, 6);
+                            if let Some(ref summary) = post.summary {
+                                // box1.set_tooltip_markup(Some(summary.as_str()));
+                                box1.set_tooltip_text(Some(summary.as_str()));
+                            }
                             box1.set_border_width(6);
                             let label1 = Label::new(Some(&post.title));
                             label1.set_halign(Align::Start);

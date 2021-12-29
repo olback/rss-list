@@ -1,6 +1,6 @@
 [package]
 name = "rss-list"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Edwin Svensson <rss-list@olback.net>"]
 edition = "2018"
 build = "build/build.rs"
@@ -16,6 +16,7 @@ reqwest = { version = "0.11", features = [ "blocking", "rustls-tls" ], default-f
 chrono = "0.4"
 rayon = "1"
 dirs = "4"
+hex = "0.4"
 
 [build-dependencies]
 regex = "1.3"

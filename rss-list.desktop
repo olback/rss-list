@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=RSS List
 Comment=Simple RSS List
-Exec=/usr/bin/rss-list
+Exec=.cargo/bin/rss-list
 Icon=emblem-documents
 Terminal=false
 Type=Application

@@ -1,8 +1,7 @@
 # RSS List
 
-
 ### TODO:
-* [ ] Remove sources
-* [ ] Filter sources
-* [ ] Search
-* [ ] Install
+* Filter sources
+* Search
+* Install
+

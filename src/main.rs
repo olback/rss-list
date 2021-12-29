@@ -1,4 +1,3 @@
-#![feature(result_flattening)]
 use {
     gtk::{
         gio::{prelude::*, resources_register, Resource},
