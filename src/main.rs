@@ -1,3 +1,4 @@
+#![feature(result_flattening)]
 use {
     gtk::{
         gio::{prelude::*, resources_register, Resource},
@@ -12,6 +13,7 @@ include!("../resource.rs");
 
 mod error;
 mod macros;
+mod source;
 mod ui;
 
 const RESOURCE_BYTES: &[u8] = include_bytes!("../out/assets.gresource");
@@ -34,10 +36,9 @@ fn main() -> error::Result<()> {
     // Create app
     let app = Application::new(Some(&app_id()), Default::default());
 
-    // Create ui
-    let ui_ref = Ui::new();
-
     app.connect_activate(move |app| {
+        // Create ui
+        let ui_ref = Ui::new();
         ui_ref.set_app(app);
         ui_ref.show();
     });

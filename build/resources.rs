@@ -60,7 +60,7 @@ pub fn generate_xml(glade_files: &[PathBuf]) {
         .replace_all(&glade_xml_data, out.as_str())
         .replace("{prefix}", resource!(""));
 
-    fs::write(TARGET, after.to_owned().as_bytes()).unwrap();
+    fs::write(TARGET, after.as_bytes()).unwrap();
 }
 
 pub fn generate_resources() {

@@ -1,6 +1,8 @@
-# Rust GTK 3 Template
+# RSS List
 
-### Getting started
 
-* Edit `resource.rs`
-* Change `name`, `author` and `homepage` in `Cargo.toml`
+### TODO:
+* [ ] Remove sources
+* [ ] Filter sources
+* [ ] Search
+* [ ] Install
